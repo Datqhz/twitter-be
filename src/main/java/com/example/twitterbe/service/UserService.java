@@ -3,13 +3,19 @@ package com.example.twitterbe.service;
 import com.example.twitterbe.collection.Comment;
 import com.example.twitterbe.collection.Follow;
 import com.example.twitterbe.collection.User;
+import com.example.twitterbe.dto.TweetWithUserInfo;
 import com.example.twitterbe.dto.UserInfoWithFollow;
 import com.example.twitterbe.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.MatchOperation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.regex.Pattern;
 
 @Service
 public class UserService {
@@ -40,5 +46,17 @@ public class UserService {
     public long countFollowed(String id){
         Query query = new Query(Criteria.where("followingId").is(id));
         return mongoTemplate.count(query, Follow.class);
+    }
+
+    public List<User> getListUsernameContainString(String s){
+        Pattern pattern = Pattern.compile(s, Pattern.CASE_INSENSITIVE);
+        Criteria criteria = Criteria.where("username").regex(pattern);
+        Query query = new Query(criteria);
+        List<User> users = mongoTemplate.find(query, User.class);
+        System.out.println(users.isEmpty());
+        return users;
+    }
+    public User findUser(String uid){
+        return userRepository.findUserByUID(uid);
     }
 }

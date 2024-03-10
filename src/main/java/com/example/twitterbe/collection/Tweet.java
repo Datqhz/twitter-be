@@ -22,5 +22,6 @@ public class Tweet {
     private List<String> imageLinks;
     private List<String> videoLinks;
     private Date uploadDate;
+    private String groupId;
     private int personal; // 1  is public for all, 2 is for follower, 3 is private
 }

@@ -26,6 +26,8 @@ public class TweetWithUserInfo {
     private User user;
     private long totalLike;
     private long totalComment;
+    private boolean isLike;
+    private String groupId;
     public void covertIdToString(){
         idAsString = id.toString();
     }

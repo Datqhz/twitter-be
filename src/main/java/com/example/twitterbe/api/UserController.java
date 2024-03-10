@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping(value = "api/v1/user")
 public class UserController {
@@ -30,5 +32,11 @@ public class UserController {
         }catch (Exception e){
             return new ResponseEntity<String>("Create a new user faild!", HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    @GetMapping("/{s}")
+    public ResponseEntity<List<User>> findUserByUsername(@PathVariable String s){
+        System.out.println(s);
+        return new ResponseEntity<List<User>> (userService.getListUsernameContainString(s), HttpStatus.OK);
     }
 }

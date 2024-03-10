@@ -23,13 +23,18 @@ public class TweetController {
         this.tweetService = tweetService;
     }
 
-//    @GetMapping("/{uid}")
-//    public ResponseEntity<List<Tweet>> getTweet(@PathVariable String uid){
-//        return new ResponseEntity<List<Tweet>>(tweetService.getTweetsOfUserId(uid), HttpStatus.OK);
-//    }
+    @GetMapping("/{uid}")
+    public ResponseEntity<List<TweetWithUserInfo>> getTweetOfUID(@PathVariable String uid){
+        return new ResponseEntity<List<TweetWithUserInfo>>(tweetService.getTweetsOfUserId(uid), HttpStatus.OK);
+    }
     @GetMapping
     public ResponseEntity<List<TweetWithUserInfo>> getTweet(@AuthenticationPrincipal CustomPrincipal customPrincipal){
-        return new ResponseEntity<List<TweetWithUserInfo>>(tweetService.getTweetsOfUserId(customPrincipal.getUid()), HttpStatus.OK);
+        List<String> uids = new ArrayList<>();
+        uids.add(customPrincipal.getUid());
+        List<TweetWithUserInfo> result = tweetService.getTweetsOfListUID(uids, customPrincipal.getUid());
+        result.forEach(TweetWithUserInfo::covertIdToString);
+        return new ResponseEntity<List<TweetWithUserInfo>>(result,
+                HttpStatus.OK);
     }
     @PostMapping
     public ResponseEntity<String>postTweet(@RequestBody Tweet tweet){
@@ -38,11 +43,23 @@ public class TweetController {
         return new ResponseEntity<String>("Create Tweet success",HttpStatus.CREATED);
     }
     @GetMapping("/for-you")
-    public ResponseEntity<List<TweetWithUserInfo>> getTweetForU(){
+    public ResponseEntity<List<TweetWithUserInfo>> getTweetForU(@AuthenticationPrincipal CustomPrincipal customPrincipal){
         List<String> uids = new ArrayList<>();
         uids.add("23424dfdsf");
         uids.add("5XXwNwgzZEhumYgktNYCal5fbjG3");
-        List<TweetWithUserInfo> result = tweetService.getTweetsOfListUID(uids);
+        List<TweetWithUserInfo> result = tweetService.getTweetsOfListUID(uids, customPrincipal.getUid());
+        result.forEach(TweetWithUserInfo::covertIdToString);
+        return new ResponseEntity<List<TweetWithUserInfo>>(result, HttpStatus.OK);
+    }
+    //error
+    @GetMapping("/is-like/{uid}")
+    public ResponseEntity<List<TweetWithUserInfo>> getTweetUIDLike(String uid){
+        List<TweetWithUserInfo> result = tweetService.getTweetLikedByUID(uid);
+        return new ResponseEntity<List<TweetWithUserInfo>>(result, HttpStatus.OK);
+    }
+    @GetMapping("/group/{id}")
+    public ResponseEntity<List<TweetWithUserInfo>> getTweetOfGroup(@AuthenticationPrincipal CustomPrincipal customPrincipal, @PathVariable String id){
+        List<TweetWithUserInfo> result = tweetService.getTweetsOfGroup(id, customPrincipal.getUid());
         result.forEach(TweetWithUserInfo::covertIdToString);
         return new ResponseEntity<List<TweetWithUserInfo>>(result, HttpStatus.OK);
     }
