@@ -1,15 +1,11 @@
 package com.example.twitterbe.service;
 
-import com.example.twitterbe.collection.Comment;
 import com.example.twitterbe.collection.Follow;
 import com.example.twitterbe.collection.User;
-import com.example.twitterbe.dto.TweetWithUserInfo;
 import com.example.twitterbe.dto.UserInfoWithFollow;
 import com.example.twitterbe.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.aggregation.Aggregation;
-import org.springframework.data.mongodb.core.aggregation.MatchOperation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;

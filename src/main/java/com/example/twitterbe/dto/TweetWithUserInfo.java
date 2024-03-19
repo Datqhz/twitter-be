@@ -23,13 +23,16 @@ public class TweetWithUserInfo {
     private List<String> videoLinks;
     private Date uploadDate;
     private int personal;
-    private User user;
+    private User user;// create
     private long totalLike;
     private long totalComment;
     private boolean isLike;
-    private String groupId;
+    private String groupName;
+    private User replyToUser;
+    private Tweet repostTweet;
+    private String commentTweetId;
+
     public void covertIdToString(){
         idAsString = id.toString();
     }
-
 }

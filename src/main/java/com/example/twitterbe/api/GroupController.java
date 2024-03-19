@@ -4,12 +4,14 @@ import com.example.twitterbe.collection.Group;
 import com.example.twitterbe.collection.User;
 import com.example.twitterbe.dto.GroupRequest;
 import com.example.twitterbe.dto.GroupResponse;
+import com.example.twitterbe.security.CustomPrincipal;
 import com.example.twitterbe.service.GroupService;
 import com.example.twitterbe.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.aggregation.GeoNearOperation;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -49,5 +51,28 @@ public class GroupController {
         newGroup.setGroupMembers(members);
         newGroup.setGroupOwner(owner);
         return new ResponseEntity<Group>(groupService.createGroup(newGroup),HttpStatus.OK);
+    }
+
+    // find all group joined
+    @GetMapping("/joined")
+    public ResponseEntity<List<GroupResponse>> getJoined(@AuthenticationPrincipal CustomPrincipal customPrincipal){
+        List<GroupResponse> responses = new ArrayList<>();
+        groupService.getGroupJoined(customPrincipal.getUid()).forEach(element->{
+            GroupResponse temp = new GroupResponse();
+            temp.groupMapToResponse(element);
+            responses.add(temp);
+        });
+        return new ResponseEntity<List<GroupResponse>>(responses,HttpStatus.OK);
+    }
+    @GetMapping("find")
+    public ResponseEntity<List<GroupResponse>> findGroupRegex(@RequestParam String regex){
+        List<GroupResponse> responses = new ArrayList<>();
+        System.out.println("regex: " + regex);
+        groupService.findGroupContain(regex).forEach(element->{
+            GroupResponse temp = new GroupResponse();
+            temp.groupMapToResponse(element);
+            responses.add(temp);
+        });
+        return new ResponseEntity<List<GroupResponse>>(responses,HttpStatus.OK);
     }
 }

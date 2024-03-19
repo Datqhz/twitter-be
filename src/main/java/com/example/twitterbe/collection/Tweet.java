@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
@@ -24,4 +25,8 @@ public class Tweet {
     private Date uploadDate;
     private String groupId;
     private int personal; // 1  is public for all, 2 is for follower, 3 is private
+    private String replyTo;
+    private String repost;
+    private String commentTweetId;
+    private List<String> usersLike;
 }
