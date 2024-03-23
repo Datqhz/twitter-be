@@ -87,6 +87,11 @@ public class TweetController {
         return new ResponseEntity<String>("Unlike success", HttpStatus.OK);
     }
 
+    @GetMapping("/undo-repost/{id}")
+    public ResponseEntity<String> undoRepost(@AuthenticationPrincipal CustomPrincipal customPrincipal, @PathVariable String id){
+        tweetService.undoRepost(customPrincipal.getUid(), id);
+        return new ResponseEntity<String>("Undo repost success", HttpStatus.OK);
+    }
     // Get comment
     @GetMapping("/comment/{id}")
     public ResponseEntity<List<TweetWithUserInfo>> getCommentsOfTweet(@AuthenticationPrincipal CustomPrincipal customPrincipal,@PathVariable String id){

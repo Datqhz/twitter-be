@@ -26,10 +26,12 @@ public class TweetWithUserInfo {
     private User user;// create
     private long totalLike;
     private long totalComment;
+    private long totalRepost;
     private boolean isLike;
+    private boolean isRepost;
     private String groupName;
     private User replyToUser;
-    private Tweet repostTweet;
+    private TweetWithUserInfo repostTweet;
     private String commentTweetId;
 
     public void covertIdToString(){

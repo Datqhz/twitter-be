@@ -92,7 +92,12 @@ public class TweetService {
             element.setTotalComment(countComment(element.getId().toString()));
             element.setTotalLike(tweet.getUsersLike().size());
             element.setLike(tweet.getUsersLike().contains(currentUID));
-            element.setRepostTweet(getTweetById(tweet.getRepost()));
+            if(tweet.getRepost() !=null){
+                Tweet repost = getTweetById(tweet.getRepost());
+                element.setRepostTweet(mapToTweetWithUserInfo(repost, userService.findUser(tweet.getUid()), currentUID));
+            }
+            element.setRepost(isRepostTweet(currentUID, tweet.getId().toString()));
+            element.setTotalRepost(countRepost(tweet.getId().toString()));
             element.setReplyToUser(userService.findUser(tweet.getReplyTo()));
         });
         return result;
@@ -103,6 +108,10 @@ public class TweetService {
     }
     public long countComment(String tweetId){
         Query query = new Query(Criteria.where("commentTweetId").is(tweetId));
+        return mongoTemplate.count(query, Tweet.class);
+    }
+    public long countRepost(String tweetId){
+        Query query = new Query(Criteria.where("repost").is(tweetId));
         return mongoTemplate.count(query, Tweet.class);
     }
 
@@ -184,6 +193,12 @@ public class TweetService {
             element.setTotalComment(countComment(element.getId().toString()));
             element.setTotalLike(tweet.getUsersLike().size());
             element.setLike(tweet.getUsersLike().contains(uid));
+            if(tweet.getRepost() !=null){
+                Tweet repost = getTweetById(tweet.getRepost());
+                element.setRepostTweet(mapToTweetWithUserInfo(repost, userService.findUser(tweet.getUid()), uid));
+            }
+            element.setRepost(isRepostTweet(uid, tweet.getId().toString()));
+            element.setTotalRepost(countRepost(tweet.getId().toString()));
 //            element.setRepost(getTweetById(tweet.getRepost()));
         });
         return result;
@@ -219,7 +234,7 @@ public class TweetService {
         tweetDto.setVideoLinks(tweet.getVideoLinks());
         tweetDto.setUploadDate(tweet.getUploadDate());
         tweetDto.setPersonal(tweet.getPersonal());
-        tweetDto.setUser(user); // Set the user information
+        tweetDto.setUser(user); // Set the user create information
         tweetDto.setLike(tweet.getUsersLike().contains(currentUID));
         if(!tweet.getGroupId().isEmpty()){
             Group temp = groupService.findById(tweet.getGroupId());
@@ -229,9 +244,13 @@ public class TweetService {
             tweetDto.setReplyToUser(userService.findUser(tweet.getReplyTo()));
         }
         if(tweet.getRepost()!= null){
-            tweetDto.setRepostTweet(getTweetById(tweet.getRepost()));
+            Tweet repost = getTweetById(tweet.getRepost());
+            tweetDto.setRepostTweet(mapToTweetWithUserInfo(repost, userService.findUser(repost.getUid()), currentUID));
         }
+        tweetDto.setRepost(isRepostTweet(currentUID, tweet.getId().toString()));
+        tweetDto.setTotalRepost(countRepost(tweet.getId().toString()));
         tweetDto.setCommentTweetId(tweet.getCommentTweetId());
+        tweetDto.setTotalLike(tweet.getUsersLike().size());
         // Set other properties as needed
         return tweetDto;
     }
@@ -246,6 +265,15 @@ public class TweetService {
         Query query = Query.query(Criteria.where("_id").is(tweetId));
         Update update = new Update().pull("usersLike", uid);
         mongoTemplate.updateFirst(query, update, Tweet.class);
+    }
+    public void undoRepost(String currentUID, String repostId){
+        Query query = Query.query(Criteria.where("repost").is(repostId).and("content").is("").and("uid").is(currentUID));
+        mongoTemplate.remove(query, Tweet.class);
+    }
+    public boolean isRepostTweet(String curretUID, String repostId){
+        Query query = new Query(Criteria.where("uid").is(curretUID).and("content").is("").and("repost").is(repostId));
+        Tweet tweet = mongoTemplate.findOne(query, Tweet.class);
+        return tweet!=null;
     }
     //Get comment
     public List<TweetWithUserInfo> getCommentsOfTweet(String tweetId, String uid){
