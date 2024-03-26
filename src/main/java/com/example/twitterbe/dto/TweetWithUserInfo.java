@@ -24,13 +24,14 @@ public class TweetWithUserInfo {
     private Date uploadDate;
     private int personal;
     private User user;// create
+    private UserInfoWithFollow userCreate;
     private long totalLike;
     private long totalComment;
     private long totalRepost;
     private boolean isLike;
     private boolean isRepost;
     private String groupName;
-    private User replyToUser;
+    private UserInfoWithFollow replyToUser;
     private TweetWithUserInfo repostTweet;
     private String commentTweetId;
 

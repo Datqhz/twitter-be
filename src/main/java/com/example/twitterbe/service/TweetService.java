@@ -16,6 +16,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -36,7 +37,7 @@ public class TweetService {
         this.userService = userService;
     }
     //Get all tweet created by user has uid
-    public List<TweetWithUserInfo> getTweetsOfUserId(String uid){
+    public List<TweetWithUserInfo> getTweetsOfUserId(String uid, String currentUid){
         LookupOperation lookupOperation = LookupOperation.newLookup()
                 .from("users")
                 .localField("uid")
@@ -56,11 +57,29 @@ public class TweetService {
                 // Additional stages as needed
         );
 
+        List<TweetWithUserInfo> result = mongoTemplate.aggregate(aggregation, "tweets", TweetWithUserInfo.class).getMappedResults();
+        result.forEach(element->{
+            Tweet tweet = getTweetById(element.getId().toString());
+            element.setTotalComment(countComment(element.getId().toString()));
+            element.setTotalLike(tweet.getUsersLike().size());
+            element.setLike(tweet.getUsersLike().contains(currentUid));
+            element.setUserCreate(userService.mapToUserInfoWithFollow(element.getUser(), currentUid));
+            if(tweet.getRepost() !=null){
+                Tweet repost = getTweetById(tweet.getRepost());
+                element.setRepostTweet(mapToTweetWithUserInfo(repost, userService.findUser(repost.getUid()), currentUid));
+            }
+            element.setRepost(isRepostTweet(currentUid, tweet.getId().toString()));
+            element.setTotalRepost(countRepost(tweet.getId().toString()));
+            if(tweet.getReplyTo()!=null){
+                element.setReplyToUser(userService.mapToUserInfoWithFollow(userService.findUser(tweet.getReplyTo()), currentUid));
+            }
 
-        return mongoTemplate.aggregate(aggregation, "tweets", TweetWithUserInfo.class).getMappedResults();
+        });
+        return result;
     }
 
     public void postTweet(Tweet tweet){
+        tweet.setUploadDate(new Date());
         tweetRepository.save(tweet);
     }
 
@@ -92,13 +111,16 @@ public class TweetService {
             element.setTotalComment(countComment(element.getId().toString()));
             element.setTotalLike(tweet.getUsersLike().size());
             element.setLike(tweet.getUsersLike().contains(currentUID));
+            element.setUserCreate(userService.mapToUserInfoWithFollow(element.getUser(), currentUID));
             if(tweet.getRepost() !=null){
                 Tweet repost = getTweetById(tweet.getRepost());
-                element.setRepostTweet(mapToTweetWithUserInfo(repost, userService.findUser(tweet.getUid()), currentUID));
+                element.setRepostTweet(mapToTweetWithUserInfo(repost, userService.findUser(repost.getUid()), currentUID));
             }
             element.setRepost(isRepostTweet(currentUID, tweet.getId().toString()));
             element.setTotalRepost(countRepost(tweet.getId().toString()));
-            element.setReplyToUser(userService.findUser(tweet.getReplyTo()));
+            if(tweet.getReplyTo()!=null){
+                element.setReplyToUser(userService.mapToUserInfoWithFollow(userService.findUser(tweet.getReplyTo()), currentUID));
+            }
         });
         return result;
     }
@@ -193,13 +215,16 @@ public class TweetService {
             element.setTotalComment(countComment(element.getId().toString()));
             element.setTotalLike(tweet.getUsersLike().size());
             element.setLike(tweet.getUsersLike().contains(uid));
+            element.setUserCreate(userService.mapToUserInfoWithFollow(element.getUser(), uid));
             if(tweet.getRepost() !=null){
                 Tweet repost = getTweetById(tweet.getRepost());
                 element.setRepostTweet(mapToTweetWithUserInfo(repost, userService.findUser(tweet.getUid()), uid));
             }
             element.setRepost(isRepostTweet(uid, tweet.getId().toString()));
             element.setTotalRepost(countRepost(tweet.getId().toString()));
-//            element.setRepost(getTweetById(tweet.getRepost()));
+            if(!tweet.getReplyTo().isEmpty()){
+                element.setReplyToUser(userService.mapToUserInfoWithFollow(userService.findUser(tweet.getReplyTo()), uid));
+            }
         });
         return result;
     }
@@ -235,13 +260,15 @@ public class TweetService {
         tweetDto.setUploadDate(tweet.getUploadDate());
         tweetDto.setPersonal(tweet.getPersonal());
         tweetDto.setUser(user); // Set the user create information
+        tweetDto.setUserCreate(userService.mapToUserInfoWithFollow(user, currentUID));
+
         tweetDto.setLike(tweet.getUsersLike().contains(currentUID));
         if(!tweet.getGroupId().isEmpty()){
             Group temp = groupService.findById(tweet.getGroupId());
             tweetDto.setGroupName(temp.getGroupName());
         }
         if(tweet.getReplyTo() != null){
-            tweetDto.setReplyToUser(userService.findUser(tweet.getReplyTo()));
+            tweetDto.setReplyToUser(userService.mapToUserInfoWithFollow(userService.findUser(tweet.getReplyTo()), currentUID));
         }
         if(tweet.getRepost()!= null){
             Tweet repost = getTweetById(tweet.getRepost());

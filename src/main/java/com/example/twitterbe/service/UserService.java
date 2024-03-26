@@ -23,11 +23,12 @@ public class UserService {
         this.mongoTemplate = mongoTemplate;
     }
 
-    public UserInfoWithFollow findUserByUID(String uid){
+    public UserInfoWithFollow findUserByUID(String uid, String currentUID){
         UserInfoWithFollow user = new UserInfoWithFollow();
         user.setUser(userRepository.findUserByUID(uid));
         user.setNumOfFollowing(countFollowing(uid));
         user.setNumOfFollowed(countFollowed(uid));
+        user.setFollow(isFollowUserId(uid, currentUID));
         return user;
     }
     public void addUser(User user){
@@ -35,12 +36,12 @@ public class UserService {
     }
     //count of user following user has uid is "id"
     public long countFollowing(String id){
-        Query query = new Query(Criteria.where("followedId").is(id));
+        Query query = new Query(Criteria.where("userFollow").is(id));
         return mongoTemplate.count(query, Follow.class);
     }
     //count of user who followed by user has id
     public long countFollowed(String id){
-        Query query = new Query(Criteria.where("followingId").is(id));
+        Query query = new Query(Criteria.where("userFollowed").is(id));
         return mongoTemplate.count(query, Follow.class);
     }
 
@@ -54,5 +55,19 @@ public class UserService {
     }
     public User findUser(String uid){
         return userRepository.findUserByUID(uid);
+    }
+
+    public boolean isFollowUserId(String uid, String currentUID){ // check current user is following user has uid
+        Query query = new Query(Criteria.where("userFollow").is(currentUID).and("userFollowed").is(uid));
+        Follow follows = mongoTemplate.findOne(query, Follow.class);
+        return follows!=null;
+    }
+    public UserInfoWithFollow mapToUserInfoWithFollow(User user, String currentUID){
+        UserInfoWithFollow userInfoWithFollow = new UserInfoWithFollow();
+        userInfoWithFollow.setUser(user);
+        userInfoWithFollow.setNumOfFollowing(countFollowing(user.getUid()));
+        userInfoWithFollow.setNumOfFollowed(countFollowed(user.getUid()));
+        userInfoWithFollow.setFollow(isFollowUserId(user.getUid(), currentUID));
+        return userInfoWithFollow;
     }
 }

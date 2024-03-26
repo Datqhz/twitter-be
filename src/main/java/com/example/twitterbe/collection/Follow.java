@@ -14,6 +14,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class Follow {
     @Id
     ObjectId id;
-    String followingId;
-    String followedId;
+    private String userFollow;
+    private String userFollowed;
+    private boolean isNotify;
 }

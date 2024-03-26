@@ -28,8 +28,8 @@ public class TweetController {
     }
 
     @GetMapping("/{uid}")
-    public ResponseEntity<List<TweetWithUserInfo>> getTweetOfUID(@PathVariable String uid){
-        return new ResponseEntity<List<TweetWithUserInfo>>(tweetService.getTweetsOfUserId(uid), HttpStatus.OK);
+    public ResponseEntity<List<TweetWithUserInfo>> getTweetOfUID(@PathVariable String uid, @AuthenticationPrincipal CustomPrincipal customPrincipal){
+        return new ResponseEntity<List<TweetWithUserInfo>>(tweetService.getTweetsOfUserId(uid, customPrincipal.getUid()), HttpStatus.OK);
     }
     @GetMapping
     public ResponseEntity<List<TweetWithUserInfo>> getTweet(@AuthenticationPrincipal CustomPrincipal customPrincipal){

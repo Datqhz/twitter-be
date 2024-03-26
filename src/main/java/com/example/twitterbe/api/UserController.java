@@ -22,7 +22,7 @@ public class UserController {
     }
     @GetMapping
     public ResponseEntity<UserInfoWithFollow> getUser(@AuthenticationPrincipal CustomPrincipal customPrincipal){
-        return new ResponseEntity<UserInfoWithFollow>(userService.findUserByUID(customPrincipal.getUid()), HttpStatus.OK);
+        return new ResponseEntity<UserInfoWithFollow>(userService.findUserByUID(customPrincipal.getUid(),customPrincipal.getUid()), HttpStatus.OK);
     }
     @PostMapping
     public ResponseEntity<String> addUser(@RequestBody User user){
@@ -34,9 +34,13 @@ public class UserController {
         }
     }
 
-    @GetMapping("/{s}")
+    @GetMapping("/find/{s}")
     public ResponseEntity<List<User>> findUserByUsername(@PathVariable String s){
         System.out.println(s);
         return new ResponseEntity<List<User>> (userService.getListUsernameContainString(s), HttpStatus.OK);
+    }
+    @GetMapping("/{uid}")
+    public ResponseEntity<UserInfoWithFollow> getUserHasUid(@PathVariable String uid,@AuthenticationPrincipal CustomPrincipal customPrincipal){
+        return new ResponseEntity<UserInfoWithFollow>(userService.findUserByUID(uid, customPrincipal.getUid()), HttpStatus.OK);
     }
 }

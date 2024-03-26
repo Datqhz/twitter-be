@@ -8,9 +8,9 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserInfoWithFollow {
-    private User user;
-    private long numOfFollowing;
-    private long numOfFollowed;
-    private boolean isFollow;
+public class FollowResponse {
+    private String idAsString;
+    private UserInfoWithFollow userFollow;
+    private UserInfoWithFollow userFollowed;
+    private boolean isNotify;
 }
