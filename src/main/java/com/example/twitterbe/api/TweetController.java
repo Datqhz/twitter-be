@@ -5,6 +5,7 @@ import com.example.twitterbe.dto.TweetWithUserInfo;
 import com.example.twitterbe.security.CustomPrincipal;
 import com.example.twitterbe.service.TweetService;
 import com.example.twitterbe.service.UserService;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -98,5 +99,10 @@ public class TweetController {
         List<TweetWithUserInfo> result = tweetService.getCommentsOfTweet(id,customPrincipal.getUid());
         result.forEach(TweetWithUserInfo::covertIdToString);
         return new ResponseEntity<List<TweetWithUserInfo>>(result,HttpStatus.OK);
+    }
+    @GetMapping("/test")
+    public void test(){
+        ObjectId id = new ObjectId();
+        System.out.println("id test:"+id.toString());
     }
 }

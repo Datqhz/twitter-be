@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -42,6 +43,15 @@ public class FollowService {
                 .map(e->mapToFollowResponse(e, currentUid))
                 .collect(Collectors.toList());
     }
+    public List<String> getListUserFollowingTurnOnNotify(String uid){ // Get a list of users who are follow the UID
+        Query query = new Query(Criteria.where("userFollowed").is(uid).and("isNotify").is(true));
+        List<Follow> follows = mongoTemplate.find(query, Follow.class);
+        List<String> uids = new ArrayList<>();
+        follows.forEach(e ->{
+            uids.add(e.getUserFollow());
+        });
+        return uids;
+    }
     public void followUser(Follow follow){
         followRepository.save(follow);
     }
@@ -65,6 +75,11 @@ public class FollowService {
     }
     public boolean isFollowUserId(String uid, String currentUID){ // check current user is following user has uid
         Query query = new Query(Criteria.where("userFollow").is(currentUID).and("userFollowed").is(uid));
+        Follow follows = mongoTemplate.findOne(query, Follow.class);
+        return follows!=null;
+    }
+    public boolean isFollowUserIdAndTurnOnNotify(String uid, String currentUID){ // check current user is following user has uid
+        Query query = new Query(Criteria.where("userFollow").is(currentUID).and("userFollowed").is(uid).and("isNotify").is(true));
         Follow follows = mongoTemplate.findOne(query, Follow.class);
         return follows!=null;
     }

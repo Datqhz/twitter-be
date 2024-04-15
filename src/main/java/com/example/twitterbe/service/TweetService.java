@@ -27,14 +27,18 @@ public class TweetService {
     private TweetRepository tweetRepository;
     private GroupService groupService;
     private UserService userService;
-
     private MongoTemplate mongoTemplate;
+    private FollowService followService;
+//    private NotificationService notificationService;
     @Autowired
-    public TweetService(TweetRepository tweetRepository, MongoTemplate mongoTemplate, GroupService groupService, UserService userService) {
+    public TweetService(TweetRepository tweetRepository, MongoTemplate mongoTemplate, GroupService groupService, UserService userService,
+                        FollowService followService) {
         this.tweetRepository = tweetRepository;
         this.mongoTemplate = mongoTemplate;
         this.groupService = groupService;
         this.userService = userService;
+        this.followService = followService;
+//        this.notificationService = notificationService;
     }
     //Get all tweet created by user has uid
     public List<TweetWithUserInfo> getTweetsOfUserId(String uid, String currentUid){
@@ -80,7 +84,32 @@ public class TweetService {
 
     public void postTweet(Tweet tweet){
         tweet.setUploadDate(new Date());
+        tweet.setId(new ObjectId());
         tweetRepository.save(tweet);
+        if(tweet.getReplyTo()!=null && !tweet.getReplyTo().equals(tweet.getUid())) {
+            System.out.println("step 1");
+            Tweet reply = getTweetById(tweet.getCommentTweetId());
+            if(followService.isFollowUserIdAndTurnOnNotify(tweet.getUid(),reply.getUid())){
+                System.out.println("step 2");
+                Notification notification = new Notification();
+                notification.setNotifyFrom(tweet.getUid());
+                notification.setNotifyDate(new Date());
+                notification.setTweetId(tweet.getId().toString());
+                List<String> userNotifys = new ArrayList<>();
+                userNotifys.add(reply.getUid());
+                notification.setUsersNotify(userNotifys);
+                mongoTemplate.insert(notification);
+//                notificationService.notify(notification);
+            }
+        }else {
+            Notification notification = new Notification();
+            notification.setNotifyDate(new Date());
+            notification.setNotifyFrom(tweet.getUid());
+            notification.setTweetId(tweet.getId().toString());
+            notification.setUsersNotify(followService.getListUserFollowingTurnOnNotify(tweet.getUid()));
+            mongoTemplate.insert(notification);
+//            notificationService.notify(notification);
+        }
     }
 
     // Get tweet create by list of user have uid in list
@@ -137,55 +166,6 @@ public class TweetService {
         return mongoTemplate.count(query, Tweet.class);
     }
 
-    //error query
-//    public List<TweetWithUserInfo> getTweetLikedByUID(String uid){
-//        MatchOperation matchOperation = Aggregation.match(Criteria.where("uid").is(uid));
-//
-//        // Lookup operation để join tweet với like
-//        LookupOperation lookupOperation = LookupOperation.newLookup()
-//                .from("likes")
-//                .localField("id")
-//                .foreignField("tweetId")
-//                .as("likes");
-//
-//        // Match operation để lọc tweet có ít nhất một like
-//        MatchOperation matchTweetWithLikes = Aggregation.match(Criteria.where("likes").exists(true));
-//
-//        // Projection operation để chọn ra các trường cần thiết
-//        ProjectionOperation projectOperation = Aggregation.project()
-//                .andExpression("id").as("id")
-//                .andExpression("content").as("content")
-//                .andExpression("uid").as("uid")
-//                .andExpression("imageLinks").as("imageLinks")
-//                .andExpression("videoLinks").as("videoLinks")
-//                .andExpression("uploadDate").as("uploadDate")
-//                .andExpression("personal").as("personal")
-//                .and("user").nested(bind("id", "user._id").and("username", "user.username").and("avatar", "user.avatar"))
-//                .andExclude("_id", "likes");
-//
-//        // Sort operation để sắp xếp theo thời gian (desc)
-//        SortOperation sortOperation = Aggregation.sort(Sort.Direction.DESC, "uploadDate");
-//
-//        // Aggregation pipeline
-//        Aggregation aggregation = Aggregation.newAggregation(
-//                matchOperation,
-//                lookupOperation,
-//                matchTweetWithLikes,
-//                projectOperation,
-//                sortOperation
-//        );
-//        List<TweetWithUserInfo> result = mongoTemplate.aggregate(aggregation, "tweets", TweetWithUserInfo.class).getMappedResults();
-//        result.forEach(element->{
-//            element.covertIdToString();
-//            List<User> users = mongoTemplate.find(new Query(Criteria.where("uid").is(element.getUid())), User.class);
-//            element.setUser(users.get(0));
-//            element.setTotalComment(countComment(element.getId().toString()));
-//            element.setTotalLike(countLike(element.getId().toString()));
-//            element.setLike(true);
-//
-//        });
-//        return result;
-//    }
 
 
     public List<TweetWithUserInfo> getTweetsOfGroup(String groupId, String uid){
@@ -222,7 +202,7 @@ public class TweetService {
             }
             element.setRepost(isRepostTweet(uid, tweet.getId().toString()));
             element.setTotalRepost(countRepost(tweet.getId().toString()));
-            if(!tweet.getReplyTo().isEmpty()){
+            if(tweet.getReplyTo()!=null){
                 element.setReplyToUser(userService.mapToUserInfoWithFollow(userService.findUser(tweet.getReplyTo()), uid));
             }
         });
@@ -249,7 +229,7 @@ public class TweetService {
                 .collect(Collectors.toList());
     }
 
-    private TweetWithUserInfo mapToTweetWithUserInfo(Tweet tweet, User user, String currentUID) {
+    public TweetWithUserInfo mapToTweetWithUserInfo(Tweet tweet, User user, String currentUID) {
         TweetWithUserInfo tweetDto = new TweetWithUserInfo();
         tweetDto.setId(tweet.getId());
         tweetDto.covertIdToString(); // Assuming this method converts ObjectId to String
@@ -310,5 +290,6 @@ public class TweetService {
                 .map(tweet -> mapToTweetWithUserInfo(tweet, userService.findUser(tweet.getUid()), uid))
                 .collect(Collectors.toList());
     }
+
 
 }
