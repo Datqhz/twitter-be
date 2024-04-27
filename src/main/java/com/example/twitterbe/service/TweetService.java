@@ -1,6 +1,7 @@
 package com.example.twitterbe.service;
 
 import com.example.twitterbe.collection.*;
+import com.example.twitterbe.dto.BookmarkWithTweet;
 import com.example.twitterbe.dto.TweetWithUserInfo;
 import com.example.twitterbe.repository.GroupRepository;
 import com.example.twitterbe.repository.TweetRepository;
@@ -16,6 +17,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -29,17 +31,21 @@ public class TweetService {
     private UserService userService;
     private MongoTemplate mongoTemplate;
     private FollowService followService;
-//    private NotificationService notificationService;
+    private BookmarkService bookmarkService;
+
     @Autowired
-    public TweetService(TweetRepository tweetRepository, MongoTemplate mongoTemplate, GroupService groupService, UserService userService,
-                        FollowService followService) {
+    public TweetService(TweetRepository tweetRepository, GroupService groupService, UserService userService, MongoTemplate mongoTemplate, FollowService followService, BookmarkService bookmarkService) {
         this.tweetRepository = tweetRepository;
-        this.mongoTemplate = mongoTemplate;
         this.groupService = groupService;
         this.userService = userService;
+        this.mongoTemplate = mongoTemplate;
         this.followService = followService;
-//        this.notificationService = notificationService;
+        this.bookmarkService = bookmarkService;
     }
+
+    //    private NotificationService notificationService;
+
+
     //Get all tweet created by user has uid
     public List<TweetWithUserInfo> getTweetsOfUserId(String uid, String currentUid){
         LookupOperation lookupOperation = LookupOperation.newLookup()
@@ -62,8 +68,10 @@ public class TweetService {
         );
 
         List<TweetWithUserInfo> result = mongoTemplate.aggregate(aggregation, "tweets", TweetWithUserInfo.class).getMappedResults();
+        System.out.println("num tweet: " + result.size());
         result.forEach(element->{
             Tweet tweet = getTweetById(element.getId().toString());
+            element.setIdAsString(element.getId().toString());
             element.setTotalComment(countComment(element.getId().toString()));
             element.setTotalLike(tweet.getUsersLike().size());
             element.setLike(tweet.getUsersLike().contains(currentUid));
@@ -77,7 +85,9 @@ public class TweetService {
             if(tweet.getReplyTo()!=null){
                 element.setReplyToUser(userService.mapToUserInfoWithFollow(userService.findUser(tweet.getReplyTo()), currentUid));
             }
-
+            element.setTotalQuote(countQuote(tweet.getId().toString()));
+            element.setTotalBookmark(countBookmark(tweet.getId().toString()));
+            element.setBookmark(bookmarkService.isBookmarkTweet(tweet.getId().toString(), currentUid));
         });
         return result;
     }
@@ -87,10 +97,8 @@ public class TweetService {
         tweet.setId(new ObjectId());
         tweetRepository.save(tweet);
         if(tweet.getReplyTo()!=null && !tweet.getReplyTo().equals(tweet.getUid())) {
-            System.out.println("step 1");
             Tweet reply = getTweetById(tweet.getCommentTweetId());
             if(followService.isFollowUserIdAndTurnOnNotify(tweet.getUid(),reply.getUid())){
-                System.out.println("step 2");
                 Notification notification = new Notification();
                 notification.setNotifyFrom(tweet.getUid());
                 notification.setNotifyDate(new Date());
@@ -137,6 +145,7 @@ public class TweetService {
         List<TweetWithUserInfo> result = mongoTemplate.aggregate(aggregation, "tweets", TweetWithUserInfo.class).getMappedResults();
         result.forEach(element->{
             Tweet tweet = getTweetById(element.getId().toString());
+            element.setIdAsString(element.getId().toString());
             element.setTotalComment(countComment(element.getId().toString()));
             element.setTotalLike(tweet.getUsersLike().size());
             element.setLike(tweet.getUsersLike().contains(currentUID));
@@ -150,6 +159,9 @@ public class TweetService {
             if(tweet.getReplyTo()!=null){
                 element.setReplyToUser(userService.mapToUserInfoWithFollow(userService.findUser(tweet.getReplyTo()), currentUID));
             }
+            element.setTotalQuote(countQuote(tweet.getId().toString()));
+            element.setTotalBookmark(countBookmark(tweet.getId().toString()));
+            element.setBookmark(bookmarkService.isBookmarkTweet(tweet.getId().toString(), currentUID));
         });
         return result;
     }
@@ -162,11 +174,27 @@ public class TweetService {
         return mongoTemplate.count(query, Tweet.class);
     }
     public long countRepost(String tweetId){
-        Query query = new Query(Criteria.where("repost").is(tweetId));
+        Query query = new Query(Criteria.where("repost").is(tweetId)
+                .and("content").ne("")
+                .and("imageLinks").size(0)
+                .and("videoLinks").size(0));
         return mongoTemplate.count(query, Tweet.class);
     }
-
-
+    public long countQuote(String tweetId){
+        Query query = new Query();
+        query.addCriteria(
+                Criteria.where("repost").is(tweetId).orOperator(
+                        Criteria.where("content").ne(""),
+                        Criteria.where("imageLinks").ne(Collections.emptyList()),
+                        Criteria.where("videoLinks").ne(Collections.emptyList())
+                )
+        );
+        return mongoTemplate.count(query, Tweet.class);
+    }
+    public long countBookmark(String tweetId){
+        Query query = new Query(Criteria.where("tweetId").is(tweetId));
+        return mongoTemplate.count(query, Bookmark.class);
+    }
 
     public List<TweetWithUserInfo> getTweetsOfGroup(String groupId, String uid){
         LookupOperation lookupOperation = LookupOperation.newLookup()
@@ -241,7 +269,6 @@ public class TweetService {
         tweetDto.setPersonal(tweet.getPersonal());
         tweetDto.setUser(user); // Set the user create information
         tweetDto.setUserCreate(userService.mapToUserInfoWithFollow(user, currentUID));
-
         tweetDto.setLike(tweet.getUsersLike().contains(currentUID));
         if(!tweet.getGroupId().isEmpty()){
             Group temp = groupService.findById(tweet.getGroupId());
@@ -258,6 +285,9 @@ public class TweetService {
         tweetDto.setTotalRepost(countRepost(tweet.getId().toString()));
         tweetDto.setCommentTweetId(tweet.getCommentTweetId());
         tweetDto.setTotalLike(tweet.getUsersLike().size());
+        tweetDto.setTotalQuote(countQuote(tweet.getId().toString()));
+        tweetDto.setTotalBookmark(countBookmark(tweet.getId().toString()));
+        tweetDto.setBookmark(bookmarkService.isBookmarkTweet(tweet.getId().toString(), currentUID));
         // Set other properties as needed
         return tweetDto;
     }
@@ -291,5 +321,18 @@ public class TweetService {
                 .collect(Collectors.toList());
     }
 
+    public List<BookmarkWithTweet> getBookmarkOfUid(String uid){
+        List<Bookmark> bookmarks = bookmarkService.getListBookmarkOfUid(uid);
+        List<BookmarkWithTweet> rs = new ArrayList<>();
+        for(Bookmark bookmark : bookmarks){
+            BookmarkWithTweet temp = new BookmarkWithTweet();
+            temp.setUid(bookmark.getUid());
+            temp.setIdAsString(bookmark.getId().toString());
+            Tweet tweet = getTweetById(bookmark.getTweetId());
+            temp.setTweet(mapToTweetWithUserInfo(tweet, userService.findUser(tweet.getUid()), uid));
+            rs.add(temp);
+        }
+        return rs;
+    }
 
 }

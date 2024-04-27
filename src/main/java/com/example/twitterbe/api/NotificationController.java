@@ -26,7 +26,7 @@ public class NotificationController {
 
     @GetMapping
     public ResponseEntity<List<NotifyWithTweet>> getNotificationOfUID(@AuthenticationPrincipal CustomPrincipal customPrincip){
-        return new ResponseEntity<List<NotifyWithTweet>>(notificationService.getAllNotification(customPrincip.getUid()), HttpStatus.OK);
+        return new ResponseEntity<List<NotifyWithTweet>>(notificationService.getAllNotification("23424dfdsf"), HttpStatus.OK);
     }
 
 }

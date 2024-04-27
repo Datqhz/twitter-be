@@ -2,6 +2,7 @@ package com.example.twitterbe.service;
 
 import com.example.twitterbe.collection.Group;
 import com.example.twitterbe.collection.User;
+import com.example.twitterbe.dto.GroupResponse;
 import com.example.twitterbe.repository.GroupRepository;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,12 +19,14 @@ import java.util.regex.Pattern;
 public class GroupService {
 
     private GroupRepository repository;
+    private UserService userService;
     private MongoTemplate mongoTemplate;
 
     @Autowired
-    public GroupService(GroupRepository repository, MongoTemplate mongoTemplate) {
+    public GroupService(GroupRepository repository, MongoTemplate mongoTemplate, UserService userService) {
         this.repository = repository;
         this.mongoTemplate = mongoTemplate;
+        this.userService = userService;
     }
 
     public Group createGroup(Group group){
@@ -49,5 +52,40 @@ public class GroupService {
         Query query = new Query(criteria);
         List<Group> groups = mongoTemplate.find(query, Group.class);
         return groups;
+    }
+    public void joinGroup(String groupId, String currentUid){
+        Group group = findById(groupId);
+        List<User> members = group.getGroupMembers();
+        members.add(userService.findUser(currentUid));
+        group.setGroupMembers( members);
+        repository.save(group);
+    }
+    public void leaveGroup(String groupId, String currentUid){
+        Group group = findById(groupId);
+        List<User> members = group.getGroupMembers();
+        members.remove(userService.findUser(currentUid));
+        group.setGroupMembers(members);
+        repository.save(group);
+    }
+
+    public GroupResponse mapToGroupResponse(Group group, String currentUid){
+        GroupResponse response = new GroupResponse();
+        response.setGroupIdAsString(group.getGroupId().toString());
+        response.setGroupName(group.getGroupName());
+        response.setGroupImg(group.getGroupImg());
+        response.setReview(group.getReview());
+        response.setCreateDate(group.getCreateDate());
+        response.setRulesContent(group.getRulesContent());
+        response.setRulesName(group.getRulesName());
+        response.setGroupOwner(userService.mapToUserInfoWithFollow(group.getGroupOwner(), currentUid));
+        response.setGroupMembers(group.getGroupMembers().stream()
+                .map((e)->userService.mapToUserInfoWithFollow(e, currentUid)).toList());
+        response.setIsJoined(false);
+        for (User user : group.getGroupMembers()){
+            if (user.getUid().equals(currentUid)){
+                response.setIsJoined(true);
+            }
+        }
+        return response;
     }
 }

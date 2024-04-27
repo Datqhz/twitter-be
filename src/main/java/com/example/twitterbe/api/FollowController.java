@@ -45,11 +45,11 @@ public class FollowController {
 
     @GetMapping("/following/{id}") //Get the list of Follows that UID is following
     public ResponseEntity<List<FollowResponse>> getListFollowingOfUserId(@PathVariable String id,@AuthenticationPrincipal CustomPrincipal customPrincipal){
-        return new ResponseEntity<List<FollowResponse>>(followService.getListUserFollowed(id, customPrincipal.getUid()), HttpStatus.OK);
+        return new ResponseEntity<List<FollowResponse>>(followService.getListFollowing(id, customPrincipal.getUid()), HttpStatus.OK);
     }
-    @GetMapping("/followed/{id}") //Get a list of users who are follow the UID
+    @GetMapping("/followers/{id}") //Get a list of users who are follow the UID
     public ResponseEntity<List<FollowResponse>> getListFollowedOfUserId(@PathVariable String id,@AuthenticationPrincipal CustomPrincipal customPrincipal){
-        return new ResponseEntity<List<FollowResponse>>(followService.getListUserFollowing(id, customPrincipal.getUid()), HttpStatus.OK);
+        return new ResponseEntity<List<FollowResponse>>(followService.getListFollower(id, customPrincipal.getUid()), HttpStatus.OK);
     }
 
 }

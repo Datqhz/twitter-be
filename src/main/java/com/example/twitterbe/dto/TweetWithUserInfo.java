@@ -28,6 +28,9 @@ public class TweetWithUserInfo {
     private long totalLike;
     private long totalComment;
     private long totalRepost;
+    private long totalQuote;
+    private long totalBookmark;
+    private boolean isBookmark;
     private boolean isLike;
     private boolean isRepost;
     private String groupName;

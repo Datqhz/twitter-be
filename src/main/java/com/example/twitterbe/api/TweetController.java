@@ -1,6 +1,7 @@
 package com.example.twitterbe.api;
 
 import com.example.twitterbe.collection.Tweet;
+import com.example.twitterbe.dto.BookmarkWithTweet;
 import com.example.twitterbe.dto.TweetWithUserInfo;
 import com.example.twitterbe.security.CustomPrincipal;
 import com.example.twitterbe.service.TweetService;
@@ -28,8 +29,13 @@ public class TweetController {
         this.userService = userService;
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<List<TweetWithUserInfo>> getTweetOfUID(@PathVariable String uid, @AuthenticationPrincipal CustomPrincipal customPrincipal){
+//    @GetMapping("/{id}")
+//    public ResponseEntity<List<TweetWithUserInfo>> getTweetHasId(@PathVariable String uid, @AuthenticationPrincipal CustomPrincipal customPrincipal){
+//        return new ResponseEntity<List<TweetWithUserInfo>>(tweetService.getTweetsOfUserId(uid, customPrincipal.getUid()), HttpStatus.OK);
+//    }
+    @GetMapping("/user")
+    public ResponseEntity<List<TweetWithUserInfo>> getTweetOfUID(@RequestParam String uid, @AuthenticationPrincipal CustomPrincipal customPrincipal){
+        System.out.println("get tweet uid: " + uid);
         return new ResponseEntity<List<TweetWithUserInfo>>(tweetService.getTweetsOfUserId(uid, customPrincipal.getUid()), HttpStatus.OK);
     }
     @GetMapping
@@ -52,7 +58,6 @@ public class TweetController {
         uids.add("23424dfdsf");
         uids.add("5XXwNwgzZEhumYgktNYCal5fbjG3");
         List<TweetWithUserInfo> result = tweetService.getTweetsOfListUID(uids, customPrincipal.getUid());
-        result.forEach(TweetWithUserInfo::covertIdToString);
         return new ResponseEntity<List<TweetWithUserInfo>>(result, HttpStatus.OK);
     }
     //error
@@ -99,10 +104,5 @@ public class TweetController {
         List<TweetWithUserInfo> result = tweetService.getCommentsOfTweet(id,customPrincipal.getUid());
         result.forEach(TweetWithUserInfo::covertIdToString);
         return new ResponseEntity<List<TweetWithUserInfo>>(result,HttpStatus.OK);
-    }
-    @GetMapping("/test")
-    public void test(){
-        ObjectId id = new ObjectId();
-        System.out.println("id test:"+id.toString());
     }
 }

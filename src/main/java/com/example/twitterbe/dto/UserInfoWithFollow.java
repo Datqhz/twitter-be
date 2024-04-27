@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 public class UserInfoWithFollow {
     private User user;
     private long numOfFollowing;
-    private long numOfFollowed;
+    private long numOfFollowers;
     private boolean isFollow;
 }

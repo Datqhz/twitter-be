@@ -27,7 +27,7 @@ public class UserService {
         UserInfoWithFollow user = new UserInfoWithFollow();
         user.setUser(userRepository.findUserByUID(uid));
         user.setNumOfFollowing(countFollowing(uid));
-        user.setNumOfFollowed(countFollowed(uid));
+        user.setNumOfFollowers(countFollowers(uid));
         user.setFollow(isFollowUserId(uid, currentUID));
         return user;
     }
@@ -40,7 +40,7 @@ public class UserService {
         return mongoTemplate.count(query, Follow.class);
     }
     //count of user who followed by user has id
-    public long countFollowed(String id){
+    public long countFollowers(String id){
         Query query = new Query(Criteria.where("userFollowed").is(id));
         return mongoTemplate.count(query, Follow.class);
     }
@@ -66,7 +66,7 @@ public class UserService {
         UserInfoWithFollow userInfoWithFollow = new UserInfoWithFollow();
         userInfoWithFollow.setUser(user);
         userInfoWithFollow.setNumOfFollowing(countFollowing(user.getUid()));
-        userInfoWithFollow.setNumOfFollowed(countFollowed(user.getUid()));
+        userInfoWithFollow.setNumOfFollowers(countFollowers(user.getUid()));
         userInfoWithFollow.setFollow(isFollowUserId(user.getUid(), currentUID));
         return userInfoWithFollow;
     }

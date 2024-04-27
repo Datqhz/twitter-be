@@ -15,6 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 @RestController
@@ -31,18 +32,17 @@ public class GroupController {
     }
 
     @GetMapping
-    public ResponseEntity<List<GroupResponse>> getAll(){
+    public ResponseEntity<List<GroupResponse>> getAll(@AuthenticationPrincipal CustomPrincipal customPrincipal){
         List<GroupResponse> responses = new ArrayList<>();
         groupService.getListGroup().forEach(element->{
-            GroupResponse temp = new GroupResponse();
-            temp.groupMapToResponse(element);
-            responses.add(temp);
+            responses.add(groupService.mapToGroupResponse(element, customPrincipal.getUid()));
         });
         return new ResponseEntity<List<GroupResponse>>(responses,HttpStatus.OK);
     }
     @PostMapping
     public ResponseEntity<Group> createGroup(@RequestBody GroupRequest group){
         Group newGroup = group.mapToGroup();
+        newGroup.setCreateDate(new Date());
         List<User> members = new ArrayList<>();
         group.getGroupMemberIds().forEach(element->{
             members.add(userService.findUser(element));
@@ -50,28 +50,35 @@ public class GroupController {
         User owner = userService.findUser(group.getGroupOwnerId());
         newGroup.setGroupMembers(members);
         newGroup.setGroupOwner(owner);
-        return new ResponseEntity<Group>(groupService.createGroup(newGroup),HttpStatus.OK);
+        return new ResponseEntity<Group>(groupService.createGroup(newGroup),HttpStatus.CREATED);
     }
+    @PutMapping("/join")
+    public ResponseEntity<String> joinGroup(@RequestBody String groupId, @AuthenticationPrincipal CustomPrincipal customPrincipal){
+        groupService.joinGroup(groupId, customPrincipal.getUid());
+        return new ResponseEntity<String>("join group successful", HttpStatus.OK);
+    }
+    @PutMapping("/leave")
+    public ResponseEntity<String> leaveGroup(@RequestBody String groupId, @AuthenticationPrincipal CustomPrincipal customPrincipal){
+        groupService.leaveGroup(groupId, customPrincipal.getUid());
+        return new ResponseEntity<String>("leave group successful", HttpStatus.OK);
+    }
+
 
     // find all group joined
     @GetMapping("/joined")
     public ResponseEntity<List<GroupResponse>> getJoined(@AuthenticationPrincipal CustomPrincipal customPrincipal){
         List<GroupResponse> responses = new ArrayList<>();
         groupService.getGroupJoined(customPrincipal.getUid()).forEach(element->{
-            GroupResponse temp = new GroupResponse();
-            temp.groupMapToResponse(element);
-            responses.add(temp);
+            responses.add(groupService.mapToGroupResponse(element, customPrincipal.getUid()));
         });
         return new ResponseEntity<List<GroupResponse>>(responses,HttpStatus.OK);
     }
-    @GetMapping("find")
-    public ResponseEntity<List<GroupResponse>> findGroupRegex(@RequestParam String regex){
+    @GetMapping("/find")
+    public ResponseEntity<List<GroupResponse>> findGroupRegex(@RequestParam String regex, @AuthenticationPrincipal CustomPrincipal customPrincipal){
         List<GroupResponse> responses = new ArrayList<>();
         System.out.println("regex: " + regex);
         groupService.findGroupContain(regex).forEach(element->{
-            GroupResponse temp = new GroupResponse();
-            temp.groupMapToResponse(element);
-            responses.add(temp);
+            responses.add(groupService.mapToGroupResponse(element, customPrincipal.getUid()));
         });
         return new ResponseEntity<List<GroupResponse>>(responses,HttpStatus.OK);
     }

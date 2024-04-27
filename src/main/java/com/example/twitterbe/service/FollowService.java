@@ -29,19 +29,22 @@ public class FollowService {
         this.userService = userService;
     }
 
-    public List<FollowResponse> getListUserFollowed(String uid, String currentUid){ // Get the list of Follows that UID is following
+    public List<FollowResponse> getListFollowing(String uid, String currentUid){ // Get the list of Follows that UID is following
         Query query = new Query(Criteria.where("userFollow").is(uid));
         List<Follow> follows = mongoTemplate.find(query, Follow.class);
         return follows.stream()
                 .map(e->mapToFollowResponse(e, currentUid))
                 .collect(Collectors.toList());
     }
-    public List<FollowResponse> getListUserFollowing(String uid, String currentUid){ // Get a list of users who are follow the UID
+    public List<FollowResponse> getListFollower(String uid, String currentUid){ // Get a list of users who are follow the UID
         Query query = new Query(Criteria.where("userFollowed").is(uid));
         List<Follow> follows = mongoTemplate.find(query, Follow.class);
-        return follows.stream()
+        System.out.println(follows);
+        List<FollowResponse> rs = follows.stream()
                 .map(e->mapToFollowResponse(e, currentUid))
                 .collect(Collectors.toList());
+        System.out.println(rs.size());
+        return rs;
     }
     public List<String> getListUserFollowingTurnOnNotify(String uid){ // Get a list of users who are follow the UID
         Query query = new Query(Criteria.where("userFollowed").is(uid).and("isNotify").is(true));
@@ -85,6 +88,7 @@ public class FollowService {
     }
     private FollowResponse mapToFollowResponse(Follow follow, String currentUID){
         FollowResponse followResponse = new FollowResponse();
+        System.out.println(follow);
         followResponse.setUserFollow(userService.mapToUserInfoWithFollow(userService.findUser(follow.getUserFollow()), currentUID));
         followResponse.setUserFollowed(userService.mapToUserInfoWithFollow(userService.findUser(follow.getUserFollowed()), currentUID));
         followResponse.setNotify(follow.isNotify());
