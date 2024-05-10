@@ -14,7 +14,6 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TweetWithUserInfo {
-    private ObjectId id;
     private String idAsString;
     private String content;
     private String uid;
@@ -23,7 +22,6 @@ public class TweetWithUserInfo {
     private List<String> videoLinks;
     private Date uploadDate;
     private int personal;
-    private User user;// create
     private UserInfoWithFollow userCreate;
     private long totalLike;
     private long totalComment;
@@ -38,7 +36,4 @@ public class TweetWithUserInfo {
     private TweetWithUserInfo repostTweet;
     private String commentTweetId;
 
-    public void covertIdToString(){
-        idAsString = id.toString();
-    }
 }

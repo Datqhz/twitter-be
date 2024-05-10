@@ -3,6 +3,7 @@ package com.example.twitterbe.service;
 import com.example.twitterbe.collection.Group;
 import com.example.twitterbe.collection.User;
 import com.example.twitterbe.dto.GroupResponse;
+import com.example.twitterbe.dto.UserInfoWithFollow;
 import com.example.twitterbe.repository.GroupRepository;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,14 @@ public class GroupService {
         Query groupQuery = new Query(Criteria.where("groupMembers.$id").is(new ObjectId(user.getId().toString())));
         return mongoTemplate.find(groupQuery, Group.class);
     }
+    public List<String> getAllGroupIdJoined(String uid){
+        Query userQuery = new Query(Criteria.where("uid").is(uid));
+        User user = mongoTemplate.findOne(userQuery, User.class);
+        Query groupQuery = new Query(Criteria.where("groupMembers.$id").is(new ObjectId(user.getId().toString())));
+        return mongoTemplate.find(groupQuery, Group.class).stream().map(
+                (e)-> e.getGroupId().toString()
+        ).toList();
+    }
     public Group findById(String id){
         Query query = new Query();
         query.addCriteria(Criteria.where("_id").is(new ObjectId(id)));
@@ -68,6 +77,11 @@ public class GroupService {
         repository.save(group);
     }
 
+    public List<UserInfoWithFollow> getAllMemberInGroup(String groupId, String currentUid){
+        Group group = findById(groupId);
+        List<User> members = group.getGroupMembers();
+        return members.stream().map((e)->userService.mapToUserInfoWithFollow(e, currentUid)).toList();
+    }
     public GroupResponse mapToGroupResponse(Group group, String currentUid){
         GroupResponse response = new GroupResponse();
         response.setGroupIdAsString(group.getGroupId().toString());

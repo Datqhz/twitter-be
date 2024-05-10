@@ -23,14 +23,11 @@ public class NotificationService {
     private NotificationRepository notificationRepository;
     private MongoTemplate mongoTemplate;
     private TweetService tweetService;
-    private UserService userService;
     @Autowired
-    public NotificationService(NotificationRepository notificationRepository, MongoTemplate mongoTemplate, TweetService tweetService,
-    UserService userService) {
+    public NotificationService(NotificationRepository notificationRepository, MongoTemplate mongoTemplate, TweetService tweetService) {
         this.notificationRepository = notificationRepository;
         this.mongoTemplate = mongoTemplate;
         this.tweetService = tweetService;
-        this.userService = userService;
     }
 
     public void notify(Notification notification){ // 1 all, 2 tweet owner
@@ -46,8 +43,7 @@ public class NotificationService {
      public NotifyWithTweet mapToNotifyWithTweet(Notification notification, String currentUID){
         NotifyWithTweet notifyWithTweet = new NotifyWithTweet();
         Tweet tweet = tweetService.getTweetById(notification.getTweetId());
-        User user = userService.findUser(notification.getNotifyFrom());
-        notifyWithTweet.setTweet(tweetService.mapToTweetWithUserInfo(tweet, user, currentUID));
+        notifyWithTweet.setTweet(tweetService.mapToTweetWithUserInfo(tweet, currentUID));
         if(tweet.getRepost()!=null){
             if (tweet.getRepost().equals(currentUID) && tweet.getContent().equals("")){
                 notifyWithTweet.setType(2);

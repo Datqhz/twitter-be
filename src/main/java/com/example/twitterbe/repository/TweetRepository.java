@@ -13,4 +13,6 @@ public interface TweetRepository extends MongoRepository<Tweet, ObjectId> {
 
     @Query("{'uid':?0}")
     public List<Tweet> findTweetByUid(String uid);
+    @Query("{'_id':?0}")
+    public Tweet findTweetById(ObjectId id);
 }

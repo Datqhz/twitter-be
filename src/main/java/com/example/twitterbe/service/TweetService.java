@@ -8,6 +8,8 @@ import com.example.twitterbe.repository.TweetRepository;
 import com.example.twitterbe.repository.UserRepository;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.*;
@@ -23,6 +25,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.bind;
+import static org.springframework.data.mongodb.core.aggregation.Aggregation.count;
 
 @Service
 public class TweetService {
@@ -43,53 +46,17 @@ public class TweetService {
         this.bookmarkService = bookmarkService;
     }
 
-    //    private NotificationService notificationService;
-
-
     //Get all tweet created by user has uid
     public List<TweetWithUserInfo> getTweetsOfUserId(String uid, String currentUid){
-        LookupOperation lookupOperation = LookupOperation.newLookup()
-                .from("users")
-                .localField("uid")
-                .foreignField("uid")
-                .as("user"); // Specify the attribute name in TweetWithUserInfo
-
-        UnwindOperation unwindOperation = Aggregation.unwind("$user");
-
-        MatchOperation matchOperation = Aggregation.match(
-                Criteria.where("uid").is(uid)
-        );
-
-        Aggregation aggregation = Aggregation.newAggregation(
-                matchOperation,
-                lookupOperation,
-                unwindOperation
-                // Additional stages as needed
-        );
-
-        List<TweetWithUserInfo> result = mongoTemplate.aggregate(aggregation, "tweets", TweetWithUserInfo.class).getMappedResults();
-        System.out.println("num tweet: " + result.size());
-        result.forEach(element->{
-            Tweet tweet = getTweetById(element.getId().toString());
-            element.setIdAsString(element.getId().toString());
-            element.setTotalComment(countComment(element.getId().toString()));
-            element.setTotalLike(tweet.getUsersLike().size());
-            element.setLike(tweet.getUsersLike().contains(currentUid));
-            element.setUserCreate(userService.mapToUserInfoWithFollow(element.getUser(), currentUid));
-            if(tweet.getRepost() !=null){
-                Tweet repost = getTweetById(tweet.getRepost());
-                element.setRepostTweet(mapToTweetWithUserInfo(repost, userService.findUser(repost.getUid()), currentUid));
-            }
-            element.setRepost(isRepostTweet(currentUid, tweet.getId().toString()));
-            element.setTotalRepost(countRepost(tweet.getId().toString()));
-            if(tweet.getReplyTo()!=null){
-                element.setReplyToUser(userService.mapToUserInfoWithFollow(userService.findUser(tweet.getReplyTo()), currentUid));
-            }
-            element.setTotalQuote(countQuote(tweet.getId().toString()));
-            element.setTotalBookmark(countBookmark(tweet.getId().toString()));
-            element.setBookmark(bookmarkService.isBookmarkTweet(tweet.getId().toString(), currentUid));
-        });
-        return result;
+        Query query;
+        if (uid.equals(currentUid)) {
+            query = Query.query(Criteria.where("uid").is(uid)).with(Sort.by(Sort.Order.desc("uploadDate")));
+        }else {
+            query = Query.query(Criteria.where("uid").is(uid).and("personal").is(1)).with(Sort.by(Sort.Order.desc("uploadDate")));
+        }
+        return mongoTemplate.find(query, Tweet.class).stream().map(
+                (e)-> mapToTweetWithUserInfo(e, currentUid)
+        ).toList();
     }
 
     public void postTweet(Tweet tweet){
@@ -119,52 +86,84 @@ public class TweetService {
 //            notificationService.notify(notification);
         }
     }
+    public void updateTweet(Tweet tweet){
+        tweetRepository.save(tweet);
+    }
+    public void deleteTweet(String tweetId){
+        Query query = new Query(Criteria.where("repost").is(tweetId).and("content").is(""));
+        List<Tweet> reposts = mongoTemplate.find(query, Tweet.class);
+        tweetRepository.delete(findTweetById(tweetId));
+        tweetRepository.deleteAll(reposts);
+    }
 
-    // Get tweet create by list of user have uid in list
-    public List<TweetWithUserInfo> getTweetsOfListUID(List<String> uids, String currentUID){
-        LookupOperation lookupOperation = LookupOperation.newLookup()
-                .from("users")
-                .localField("uid")
-                .foreignField("uid")
-                .as("user"); // Specify the attribute name in TweetWithUserInfo
+    public Tweet findTweetById(String tweetId){
+        return tweetRepository.findTweetById(new ObjectId(tweetId));
+    }
 
-        UnwindOperation unwindOperation = Aggregation.unwind("$user");
-
-        Sort sort = Sort.by(Sort.Direction.DESC, "timestamp");
+    public List<TweetWithUserInfo> getTweetForFollowingTab(String currentUid){
+        List<String> userFollowing = followService.getListUidFollowed(currentUid);
+        List<String> groupIds = groupService.getAllGroupIdJoined(currentUid);
+        Criteria criteria = new Criteria();
+        criteria.orOperator(
+                Criteria.where("uid").in(userFollowing),
+                Criteria.where("uid").is(currentUid),
+                Criteria.where("groupId").in(groupIds)
+        ).and("replyTo").is(null).and("personal").is(1);
+        Query query = new Query(criteria);
+        List<Tweet> tweets = mongoTemplate.find(query.with(Sort.by(Sort.Order.desc("uploadDate"))), Tweet.class);
+        return tweets.stream()
+                .map(tweet -> mapToTweetWithUserInfo(tweet,currentUid))
+                .collect(Collectors.toList());
+    }
+    public List<TweetWithUserInfo> getRandomTweet(String currentUid){
+        SampleOperation matchStage = Aggregation.sample(10);
         MatchOperation matchOperation = Aggregation.match(
-                Criteria.where("uid").in(uids)
+                Criteria.where("replyTo").is(null).and("groupId").is("").and("personal").is(1)
         );
-
         Aggregation aggregation = Aggregation.newAggregation(
                 matchOperation,
-                lookupOperation,
-                unwindOperation,
-                Aggregation.sort(Sort.Direction.DESC, "_id")
-                // Additional stages as needed
-        );
-        List<TweetWithUserInfo> result = mongoTemplate.aggregate(aggregation, "tweets", TweetWithUserInfo.class).getMappedResults();
-        result.forEach(element->{
-            Tweet tweet = getTweetById(element.getId().toString());
-            element.setIdAsString(element.getId().toString());
-            element.setTotalComment(countComment(element.getId().toString()));
-            element.setTotalLike(tweet.getUsersLike().size());
-            element.setLike(tweet.getUsersLike().contains(currentUID));
-            element.setUserCreate(userService.mapToUserInfoWithFollow(element.getUser(), currentUID));
-            if(tweet.getRepost() !=null){
-                Tweet repost = getTweetById(tweet.getRepost());
-                element.setRepostTweet(mapToTweetWithUserInfo(repost, userService.findUser(repost.getUid()), currentUID));
-            }
-            element.setRepost(isRepostTweet(currentUID, tweet.getId().toString()));
-            element.setTotalRepost(countRepost(tweet.getId().toString()));
-            if(tweet.getReplyTo()!=null){
-                element.setReplyToUser(userService.mapToUserInfoWithFollow(userService.findUser(tweet.getReplyTo()), currentUID));
-            }
-            element.setTotalQuote(countQuote(tweet.getId().toString()));
-            element.setTotalBookmark(countBookmark(tweet.getId().toString()));
-            element.setBookmark(bookmarkService.isBookmarkTweet(tweet.getId().toString(), currentUID));
-        });
-        return result;
+                matchStage
+                );
+        return mongoTemplate.aggregate(aggregation, "tweets", Tweet.class).getMappedResults().stream().map(
+                (e)-> mapToTweetWithUserInfo(e, currentUid)
+        ).toList();
     }
+
+    public List<TweetWithUserInfo> getReplyTweetOfUid(String uid, String currentUid){
+        MatchOperation matchOperation = Aggregation.match(
+                Criteria.where("replyTo").ne(null).and("personal").is(1).and("uid").is(uid)
+        );
+        Aggregation aggregation = Aggregation.newAggregation(
+                matchOperation
+        );
+        return mongoTemplate.aggregate(aggregation, "tweets", Tweet.class).getMappedResults().stream().map(
+                (e)-> mapToTweetWithUserInfo(e, currentUid)
+        ).toList();
+    }
+    public List<TweetWithUserInfo> getTweetMediaOfUid(String uid, String currentUid){
+        MatchOperation matchOperation = Aggregation.match(
+                Criteria.where("imageLinks").not().size(0).and("personal").is(1).and("uid").is(uid)
+        );
+        Aggregation aggregation = Aggregation.newAggregation(
+                matchOperation
+        );
+        return mongoTemplate.aggregate(aggregation, "tweets", Tweet.class).getMappedResults().stream().map(
+                (e)-> mapToTweetWithUserInfo(e, currentUid)
+        ).toList();
+    }
+    public List<TweetWithUserInfo> getLikedOfUid(String uid, String currentUid){
+        MatchOperation matchOperation = Aggregation.match(
+                Criteria.where("usersLike").is(uid).and("personal").is(1)
+        );
+        Aggregation aggregation = Aggregation.newAggregation(
+                matchOperation
+        );
+        return mongoTemplate.aggregate(aggregation, "tweets", Tweet.class).getMappedResults().stream().map(
+                (e)-> mapToTweetWithUserInfo(e, currentUid)
+        ).toList();
+    }
+
+
     public Tweet getTweetById(String tweetId){
         Query query = new Query(Criteria.where("_id").is(tweetId));
         return mongoTemplate.findOne(query, Tweet.class);
@@ -196,100 +195,22 @@ public class TweetService {
         return mongoTemplate.count(query, Bookmark.class);
     }
 
-    public List<TweetWithUserInfo> getTweetsOfGroup(String groupId, String uid){
-        LookupOperation lookupOperation = LookupOperation.newLookup()
-                .from("users")
-                .localField("uid")
-                .foreignField("uid")
-                .as("user"); // Specify the attribute name in TweetWithUserInfo
-
-        UnwindOperation unwindOperation = Aggregation.unwind("$user");
-
-        Sort sort = Sort.by(Sort.Direction.DESC, "timestamp");
-        MatchOperation matchOperation = Aggregation.match(
-                Criteria.where("groupId").in(groupId)
-        );
-
-        Aggregation aggregation = Aggregation.newAggregation(
-                matchOperation,
-                lookupOperation,
-                unwindOperation,
-                Aggregation.sort(Sort.Direction.DESC, "_id")
-                // Additional stages as needed
-        );
-        List<TweetWithUserInfo> result = mongoTemplate.aggregate(aggregation, "tweets", TweetWithUserInfo.class).getMappedResults();
-        result.forEach(element->{
-            Tweet tweet = getTweetById(element.getId().toString());
-            element.setTotalComment(countComment(element.getId().toString()));
-            element.setTotalLike(tweet.getUsersLike().size());
-            element.setLike(tweet.getUsersLike().contains(uid));
-            element.setUserCreate(userService.mapToUserInfoWithFollow(element.getUser(), uid));
-            if(tweet.getRepost() !=null){
-                Tweet repost = getTweetById(tweet.getRepost());
-                element.setRepostTweet(mapToTweetWithUserInfo(repost, userService.findUser(tweet.getUid()), uid));
-            }
-            element.setRepost(isRepostTweet(uid, tweet.getId().toString()));
-            element.setTotalRepost(countRepost(tweet.getId().toString()));
-            if(tweet.getReplyTo()!=null){
-                element.setReplyToUser(userService.mapToUserInfoWithFollow(userService.findUser(tweet.getReplyTo()), uid));
-            }
-        });
-        return result;
+    public List<TweetWithUserInfo> getTweetsOfGroup(String groupId, String currentUid){
+        Query query = Query.query(Criteria.where("groupId").is(groupId)).with(Sort.by(Sort.Order.desc("uploadDate")));
+        return mongoTemplate.find(query, Tweet.class).stream().map(
+                (e)-> mapToTweetWithUserInfo(e, currentUid)
+        ).toList();
     }
     public List<TweetWithUserInfo> getTweetsOfGroupUserJoin(String uid){
-
-        List<Group> userGroups = groupService.getGroupJoined(uid);
-        System.out.println(userGroups.size());
-
         // Extract group IDs
-        List<String> groupIds  = new ArrayList<>();
-        userGroups.forEach(element->{
-            groupIds.add(element.getGroupId().toString());
-        });
-
+        List<String> groupIds  = groupService.getAllGroupIdJoined(uid);
         // Find tweets where groupId is in the list of user's group memberships
-        Query tweetQuery = new Query(Criteria.where("groupId").in(groupIds)).with(Sort.by(Sort.Order.desc("uploadDate")));;
+        Query tweetQuery = new Query(Criteria.where("groupId").in(groupIds)).with(Sort.by(Sort.Order.desc("uploadDate")));
         List<Tweet> tweets = mongoTemplate.find(tweetQuery, Tweet.class);
-
         // Map tweets to TweetWithUserInfo DTOs
         return tweets.stream()
-                .map(tweet -> mapToTweetWithUserInfo(tweet, userService.findUser(tweet.getUid()), uid))
+                .map(tweet -> mapToTweetWithUserInfo(tweet, uid))
                 .collect(Collectors.toList());
-    }
-
-    public TweetWithUserInfo mapToTweetWithUserInfo(Tweet tweet, User user, String currentUID) {
-        TweetWithUserInfo tweetDto = new TweetWithUserInfo();
-        tweetDto.setId(tweet.getId());
-        tweetDto.covertIdToString(); // Assuming this method converts ObjectId to String
-        tweetDto.setContent(tweet.getContent());
-        tweetDto.setUid(tweet.getUid());
-        tweetDto.setImageLinks(tweet.getImageLinks());
-        tweetDto.setVideoLinks(tweet.getVideoLinks());
-        tweetDto.setUploadDate(tweet.getUploadDate());
-        tweetDto.setPersonal(tweet.getPersonal());
-        tweetDto.setUser(user); // Set the user create information
-        tweetDto.setUserCreate(userService.mapToUserInfoWithFollow(user, currentUID));
-        tweetDto.setLike(tweet.getUsersLike().contains(currentUID));
-        if(!tweet.getGroupId().isEmpty()){
-            Group temp = groupService.findById(tweet.getGroupId());
-            tweetDto.setGroupName(temp.getGroupName());
-        }
-        if(tweet.getReplyTo() != null){
-            tweetDto.setReplyToUser(userService.mapToUserInfoWithFollow(userService.findUser(tweet.getReplyTo()), currentUID));
-        }
-        if(tweet.getRepost()!= null){
-            Tweet repost = getTweetById(tweet.getRepost());
-            tweetDto.setRepostTweet(mapToTweetWithUserInfo(repost, userService.findUser(repost.getUid()), currentUID));
-        }
-        tweetDto.setRepost(isRepostTweet(currentUID, tweet.getId().toString()));
-        tweetDto.setTotalRepost(countRepost(tweet.getId().toString()));
-        tweetDto.setCommentTweetId(tweet.getCommentTweetId());
-        tweetDto.setTotalLike(tweet.getUsersLike().size());
-        tweetDto.setTotalQuote(countQuote(tweet.getId().toString()));
-        tweetDto.setTotalBookmark(countBookmark(tweet.getId().toString()));
-        tweetDto.setBookmark(bookmarkService.isBookmarkTweet(tweet.getId().toString(), currentUID));
-        // Set other properties as needed
-        return tweetDto;
     }
 
     //Like tweet and unlike
@@ -317,7 +238,7 @@ public class TweetService {
         Query query = Query.query(Criteria.where("commentTweetId").is(tweetId));
         List<Tweet> tweets = mongoTemplate.find(query, Tweet.class);
         return tweets.stream()
-                .map(tweet -> mapToTweetWithUserInfo(tweet, userService.findUser(tweet.getUid()), uid))
+                .map(tweet -> mapToTweetWithUserInfo(tweet, uid))
                 .collect(Collectors.toList());
     }
 
@@ -329,10 +250,44 @@ public class TweetService {
             temp.setUid(bookmark.getUid());
             temp.setIdAsString(bookmark.getId().toString());
             Tweet tweet = getTweetById(bookmark.getTweetId());
-            temp.setTweet(mapToTweetWithUserInfo(tweet, userService.findUser(tweet.getUid()), uid));
+            temp.setTweet(mapToTweetWithUserInfo(tweet, uid));
             rs.add(temp);
         }
         return rs;
+    }
+
+    public TweetWithUserInfo mapToTweetWithUserInfo(Tweet tweet,  String currentUID) {
+        TweetWithUserInfo tweetDto = new TweetWithUserInfo();
+        tweetDto.setIdAsString(tweet.getId().toString()); // Assuming this method converts ObjectId to String
+        tweetDto.setContent(tweet.getContent());
+        tweetDto.setUid(tweet.getUid());
+        tweetDto.setImageLinks(tweet.getImageLinks());
+        tweetDto.setVideoLinks(tweet.getVideoLinks());
+        tweetDto.setUploadDate(tweet.getUploadDate());
+        tweetDto.setPersonal(tweet.getPersonal());
+        tweetDto.setUserCreate(userService.mapToUserInfoWithFollow(userService.findUser(tweet.getUid()), currentUID));
+        tweetDto.setLike(tweet.getUsersLike().contains(currentUID));
+        if(!tweet.getGroupId().isEmpty()){
+            Group temp = groupService.findById(tweet.getGroupId());
+            tweetDto.setGroupName(temp.getGroupName());
+        }
+        if(tweet.getReplyTo() != null){
+            tweetDto.setReplyToUser(userService.mapToUserInfoWithFollow(userService.findUser(tweet.getReplyTo()), currentUID));
+        }
+        if(tweet.getRepost()!= null){
+            Tweet repost = getTweetById(tweet.getRepost());
+            tweetDto.setRepostTweet(mapToTweetWithUserInfo(repost, currentUID));
+        }
+        tweetDto.setRepost(isRepostTweet(currentUID, tweet.getId().toString()));
+        tweetDto.setTotalRepost(countRepost(tweet.getId().toString()));
+        tweetDto.setCommentTweetId(tweet.getCommentTweetId());
+        tweetDto.setTotalLike(tweet.getUsersLike().size());
+        tweetDto.setTotalComment(countComment(tweet.getId().toString()));
+        tweetDto.setTotalQuote(countQuote(tweet.getId().toString()));
+        tweetDto.setTotalBookmark(countBookmark(tweet.getId().toString()));
+        tweetDto.setBookmark(bookmarkService.isBookmarkTweet(tweet.getId().toString(), currentUID));
+        // Set other properties as needed
+        return tweetDto;
     }
 
 }

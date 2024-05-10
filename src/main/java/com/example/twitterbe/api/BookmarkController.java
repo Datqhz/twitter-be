@@ -2,6 +2,7 @@ package com.example.twitterbe.api;
 
 import com.example.twitterbe.collection.Bookmark;
 import com.example.twitterbe.dto.BookmarkWithTweet;
+import com.example.twitterbe.exception.InternalException;
 import com.example.twitterbe.security.CustomPrincipal;
 import com.example.twitterbe.service.BookmarkService;
 import com.example.twitterbe.service.TweetService;
@@ -31,24 +32,42 @@ public class BookmarkController {
 
     @GetMapping
     public ResponseEntity<List<BookmarkWithTweet>>getBookmarkCurrentUser(@AuthenticationPrincipal CustomPrincipal customPrincipal){
-        return new ResponseEntity<List<BookmarkWithTweet>>(tweetService.getBookmarkOfUid(customPrincipal.getUid()), HttpStatus.OK);
+        List<BookmarkWithTweet> data;
+        try{
+            data = tweetService.getBookmarkOfUid(customPrincipal.getUid());
+        }catch (Exception e){
+            throw new InternalException("Internal Server Error " + e.getMessage());
+        }
+        return new ResponseEntity<List<BookmarkWithTweet>>(data, HttpStatus.OK);
     }
 
     @PostMapping
     public ResponseEntity<String> bookmarkTweet(@RequestBody Bookmark bookmark){
-        bookmark.setId(new ObjectId());
-        bookmark.setDateBookmark(new Date());
-        bookmarkService.save(bookmark);
+        try{
+            bookmark.setId(new ObjectId());
+            bookmark.setDateBookmark(new Date());
+            bookmarkService.save(bookmark);
+        }catch (Exception e){
+            throw new InternalException("Internal Server Error " + e.getMessage());
+        }
         return new ResponseEntity<String>("bookmark successful", HttpStatus.CREATED);
     }
     @DeleteMapping("/{tweetId}")
     public ResponseEntity<String> removeBookmark(@PathVariable String tweetId, @AuthenticationPrincipal CustomPrincipal customPrincipal){
-        bookmarkService.remove(customPrincipal.getUid(), tweetId);
+        try{
+            bookmarkService.remove(customPrincipal.getUid(), tweetId);
+        }catch (Exception e){
+            throw new InternalException("Internal Server Error " + e.getMessage());
+        }
         return new  ResponseEntity<String>("remove successful",HttpStatus.OK);
     }
     @GetMapping("/clear-all")
     public ResponseEntity<String> clearAllBookmark( @AuthenticationPrincipal CustomPrincipal customPrincipal){
-        bookmarkService.clearAllBookmark(customPrincipal.getUid());
+        try{
+            bookmarkService.clearAllBookmark(customPrincipal.getUid());
+        }catch (Exception e){
+            throw new InternalException("Internal Server Error " + e.getMessage());
+        }
         return new  ResponseEntity<String>("remove all successful",HttpStatus.OK);
     }
 }

@@ -69,11 +69,11 @@ public class FollowService {
                 .map(Follow::getUserFollowed)
                 .collect(Collectors.toList());
     }
-    public List<String> getListUserFollowingNotify(String currentUid){ // Get a list of following users has isNotify true
-        Query query = new Query(Criteria.where("userFollowed").is(currentUid).and("isNotify").is(true));
+    public List<String> getListUserFollowedNotify(String currentUid){
+        Query query = new Query(Criteria.where("userFollow").is(currentUid).and("isNotify").is(true));
         List<Follow> follows = mongoTemplate.find(query, Follow.class);
         return follows.stream()
-                .map(Follow::getUserFollow)
+                .map(Follow::getUserFollowed)
                 .collect(Collectors.toList());
     }
     public boolean isFollowUserId(String uid, String currentUID){ // check current user is following user has uid
