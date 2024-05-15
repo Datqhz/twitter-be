@@ -40,10 +40,10 @@ public class FollowService {
         Query query = new Query(Criteria.where("userFollowed").is(uid));
         List<Follow> follows = mongoTemplate.find(query, Follow.class);
         System.out.println(follows);
+        System.out.println(uid);
         List<FollowResponse> rs = follows.stream()
                 .map(e->mapToFollowResponse(e, currentUid))
                 .collect(Collectors.toList());
-        System.out.println(rs.size());
         return rs;
     }
     public List<String> getListUserFollowingTurnOnNotify(String uid){ // Get a list of users who are follow the UID
@@ -57,6 +57,10 @@ public class FollowService {
     }
     public void followUser(Follow follow){
         followRepository.save(follow);
+    }
+    public FollowResponse getFollowInfo(String uid, String currentUid){
+        Query query = new Query(Criteria.where("userFollowed").is(uid).and("userFollow").is(currentUid));
+        return mapToFollowResponse(mongoTemplate.findOne(query, Follow.class), currentUid);
     }
     public void unfollowUser(String uid, String currentUid){
         Query query = new Query(Criteria.where("userFollowed").is(uid).and("userFollow").is(currentUid));

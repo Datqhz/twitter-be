@@ -5,6 +5,7 @@ import com.example.twitterbe.dto.FollowResponse;
 import com.example.twitterbe.exception.InternalException;
 import com.example.twitterbe.security.CustomPrincipal;
 import com.example.twitterbe.service.FollowService;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,14 +32,16 @@ public class FollowController {
     @PostMapping
     public ResponseEntity<String> followUser( @RequestBody Follow follow){
         try{
+            follow.setNotify(true);
             followService.followUser(follow);
         }catch (Exception e){
             throw new InternalException("Internal Server Error " + e.getMessage());
         }
         return new ResponseEntity<String>("Create success", HttpStatus.CREATED);
     }
-    @PutMapping
-    public ResponseEntity<String> updateFollow(@AuthenticationPrincipal CustomPrincipal customPrincipal, @RequestBody Follow follow){
+    @PutMapping("/{id}")
+    public ResponseEntity<String> updateFollow(@PathVariable String id, @AuthenticationPrincipal CustomPrincipal customPrincipal, @RequestBody Follow follow){
+        follow.setId(new ObjectId(id));
         try{
             followService.followUser(follow);
         }catch (Exception e){
@@ -56,6 +59,17 @@ public class FollowController {
         return new ResponseEntity<String>("Delete success", HttpStatus.OK);
     }
 
+    @GetMapping("/info/{id}")
+    public ResponseEntity<FollowResponse> getFollowInfo(@PathVariable String id,@AuthenticationPrincipal CustomPrincipal customPrincipal){
+        FollowResponse data = new FollowResponse();
+        try{
+            data = followService.getFollowInfo(id, customPrincipal.getUid());
+        }catch (Exception e){
+            throw new InternalException("Internal Server Error " + e.getMessage());
+        }
+        System.out.println("data: " + data);
+        return new ResponseEntity<FollowResponse>(data, HttpStatus.OK);
+    }
     @GetMapping("/following/{id}") //Get the list of Follows that UID is following
     public ResponseEntity<List<FollowResponse>> getListFollowingOfUserId(@PathVariable String id,@AuthenticationPrincipal CustomPrincipal customPrincipal){
         List<FollowResponse> data;
